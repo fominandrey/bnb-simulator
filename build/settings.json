@@ -1,0 +1,14 @@
+{
+    "timer" :
+    {
+        "time cost" :
+        {
+            "solve" : 1
+        }
+    },
+
+    "resolver" :
+    {
+        "maximal task level" : 32
+    }
+}

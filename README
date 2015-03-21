@@ -1,0 +1,10 @@
+Инструкции для сборки:
+
+1. Поместить в одну родительскую директорию bnb-solver, bnb-simulator, build, apply_settings.hpp, apply_settings.cpp и bnbtest.cpp
+2. Перейти в директорию bnb-solver/libjson и выполнить make для сборки библиотеки libjson.a
+3. Перейти в директорию build и выполнить cmake CMakeLists.txt
+4. Выполнить make для создания исполняемого файла bnbtest
+
+Настройки приложения размещены в файле build/settings.json
+
+После запуска bnbtest следует ввести число псевдопроцессов и число шагов на исходной стадии.
