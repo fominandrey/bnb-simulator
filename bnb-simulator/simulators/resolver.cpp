@@ -2,7 +2,6 @@
 
 int simulator::resolver::max_level;
 
-//
 void simulator::resolver::apply_settings(const JSONNode& node)
 {
     max_level = node["maximal task level"].as_int();

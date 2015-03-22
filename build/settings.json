@@ -3,7 +3,9 @@
     {
         "time cost" :
         {
-            "solve" : 1
+            "solve" : 1,
+            "send" : 1,
+            "receive" : 1
         }
     },
 

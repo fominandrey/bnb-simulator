@@ -11,7 +11,7 @@ namespace pools
         long long n = 0;
 
     protected:
-        //
+
         void increase_size() { ++n; }
         void decrease_size() { --n; }
 

@@ -31,7 +31,7 @@ namespace simulator
         bool split(const task& t) { return !(distribution(generator) < t.level); }
 
     public:
-        //
+
         static void apply_settings(const JSONNode& node);
 
         // constructor

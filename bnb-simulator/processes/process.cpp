@@ -42,6 +42,8 @@ void simulator::process::send_command()
     binser << code;
     binser << command;
 
+    time.spend(timer::time_cost::send_cost());
+
     mComm.send(self, binser, time.get(), dest);
     binser.reset();
 
@@ -60,6 +62,8 @@ void simulator::process::send_sub()
 	if (info.mNSub > 0) {
         binser << code;
         mSolver.getSubs(num, binser);
+
+        time.spend(timer::time_cost::send_cost());
 
         mComm.send(self, binser, time.get(), dest);
         binser.reset();
@@ -81,6 +85,8 @@ void simulator::process::send_records()
     binser << code;
     mSolver.getRecords(binser);
 
+    time.spend(timer::time_cost::send_cost());
+
     mComm.send(self, binser, time.get(), dest);
     binser.reset();
 
@@ -100,6 +106,8 @@ void simulator::process::send_sub_and_records()
         binser << code;
         mSolver.getRecords(binser);
         mSolver.getSubs(num, binser);
+
+        time.spend(timer::time_cost::send_cost());
 
         mComm.send(self, binser, time.get(), dest);
         binser.reset();
@@ -181,9 +189,11 @@ void simulator::process::complete_receive()
 		break;
 	// this case can't occur
 	default:
-        printf("message type [%d]\n", code);
+        std::cout << "message type [" << code << "]\n";
 		BNB_ERROR_REPORT("Undefined message type");
     }
+
+    time.spend(timer::time_cost::receive_cost());
 
     binser.reset();
 }
@@ -226,22 +236,13 @@ void simulator::process::work()
             break;
         // this case can't occur
         default:
-            printf("action [%d]\n", action.mCode);
+            std::cout << "action [" << action.mCode << "]\n";
             BNB_ERROR_REPORT("Undefined action");
         }
     } else {
 		state = process_state::active;
 		complete_receive();
 	}
-}
-
-void simulator::process::complete_gather()
-{
-    binser >> s;
-    os << source << ": " << s << '\n';
-    binser.reset();
-    s.clear();
-	++source;
 }
 
 bool simulator::process::finish()
@@ -259,10 +260,8 @@ bool simulator::process::finish()
                 os << "time = " << time.get() << '\n';
                 os << accumulator << ": " << cnt.toString() << '\n';
             } else {
-                binser.reset();
                 binser << cnt.toString();
                 mComm.send(self, binser, time.get(), accumulator);
-                binser.reset();
                 return false;
             }
 		    // accumulator starts to gather data that other pseudo-processes have sent
@@ -292,13 +291,23 @@ bool simulator::process::finish()
 	}
 }
 
+void simulator::process::complete_gather()
+{
+    binser >> s;
+    os << source << ": " << s << '\n';
+    binser.reset();
+    s.clear();
+	++source;
+}
+
 bool simulator::process::proceed()
 {
     if (state != process_state::sleep) {
-		if (!quit)
+		if (!quit) {
 			work();
-		else
+        } else {
             return finish();
+        }
     }
     return true;
 }

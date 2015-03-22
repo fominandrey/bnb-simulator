@@ -17,15 +17,20 @@ namespace simulator
 		{
             // for one step
             static int solve;
+            // for sending
+            static int send;
+            // for receiving
+            static int receive;
 
         public:
-            //
+
             static void apply_settings(const JSONNode& node);
 
             static int solve_cost() { return solve; }
+            static int send_cost() { return send; }
+            static int receive_cost() { return receive; }
         };
 
-        //
         static void apply_settings(const JSONNode& node);
 
     	static const long long sleep_time = -1;
