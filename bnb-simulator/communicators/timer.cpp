@@ -6,12 +6,10 @@ void simulator::timer::apply_settings(const JSONNode& node)
 }
 
 int simulator::timer::time_cost::solve;
-int simulator::timer::time_cost::send;
-int simulator::timer::time_cost::receive;
+int simulator::timer::time_cost::overhead;
 
 void simulator::timer::time_cost::apply_settings(const JSONNode& node)
 {
     solve = node["solve"].as_int();
-    send = node["send"].as_int();
-    receive = node["receive"].as_int();
+    overhead = node["overhead"].as_int();
 }

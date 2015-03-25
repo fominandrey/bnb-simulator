@@ -8,6 +8,7 @@
 
 #include <map>
 #include <vector>
+#include <random>
 #include <functional>
 
 namespace simulator
@@ -16,6 +17,15 @@ namespace simulator
 	{
 		// process pool size
 		int n;
+
+        static int max_latency;
+
+        // tools to generate pseudo-random integers
+        std::random_device device;
+        std::mt19937 generator{ device() };
+        std::uniform_int_distribution<> distribution{ (max_latency > 0) ? 1 : 0, max_latency };
+
+        int latency() { return distribution(generator); }
 
         std::vector<long long> send_bytes;
         std::vector<long long> receive_bytes;
@@ -30,6 +40,9 @@ namespace simulator
         void deliver(Buffer& storage, const Buffer& content) const;
 
     public:
+
+        static void apply_settings(const JSONNode& node);
+
         // constructor
         explicit communicator(int size);
 

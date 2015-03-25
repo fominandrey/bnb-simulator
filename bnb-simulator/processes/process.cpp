@@ -42,7 +42,7 @@ void simulator::process::send_command()
     binser << code;
     binser << command;
 
-    time.spend(timer::time_cost::send_cost());
+    time.spend(timer::time_cost::overhead_cost());
 
     mComm.send(self, binser, time.get(), dest);
     binser.reset();
@@ -63,7 +63,7 @@ void simulator::process::send_sub()
         binser << code;
         mSolver.getSubs(num, binser);
 
-        time.spend(timer::time_cost::send_cost());
+        time.spend(timer::time_cost::overhead_cost());
 
         mComm.send(self, binser, time.get(), dest);
         binser.reset();
@@ -85,7 +85,7 @@ void simulator::process::send_records()
     binser << code;
     mSolver.getRecords(binser);
 
-    time.spend(timer::time_cost::send_cost());
+    time.spend(timer::time_cost::overhead_cost());
 
     mComm.send(self, binser, time.get(), dest);
     binser.reset();
@@ -107,7 +107,7 @@ void simulator::process::send_sub_and_records()
         mSolver.getRecords(binser);
         mSolver.getSubs(num, binser);
 
-        time.spend(timer::time_cost::send_cost());
+        time.spend(timer::time_cost::overhead_cost());
 
         mComm.send(self, binser, time.get(), dest);
         binser.reset();
@@ -193,7 +193,7 @@ void simulator::process::complete_receive()
 		BNB_ERROR_REPORT("Undefined message type");
     }
 
-    time.spend(timer::time_cost::receive_cost());
+    time.spend(timer::time_cost::overhead_cost());
 
     binser.reset();
 }

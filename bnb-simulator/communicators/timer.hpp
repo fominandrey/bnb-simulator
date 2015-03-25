@@ -17,18 +17,15 @@ namespace simulator
 		{
             // for one step
             static int solve;
-            // for sending
-            static int send;
-            // for receiving
-            static int receive;
+            // process delay for sendind and receiving
+            static int overhead;
 
         public:
 
             static void apply_settings(const JSONNode& node);
 
             static int solve_cost() { return solve; }
-            static int send_cost() { return send; }
-            static int receive_cost() { return receive; }
+            static int overhead_cost() { return overhead; }
         };
 
         static void apply_settings(const JSONNode& node);

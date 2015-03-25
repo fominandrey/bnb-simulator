@@ -4,9 +4,13 @@
         "time cost" :
         {
             "solve" : 1,
-            "send" : 1,
-            "receive" : 1
+            "overhead" : 0
         }
+    },
+
+    "communicator" :
+    {
+        "maximal latency" : 10
     },
 
     "resolver" :

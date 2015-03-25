@@ -9,5 +9,6 @@ void apply_settings()
     JSONNode node = libjson::parse(content);
 
     simulator::timer::apply_settings(node["timer"]);
+    simulator::communicator::apply_settings(node["communicator"]);
     simulator::resolver::apply_settings(node["resolver"]);
 }

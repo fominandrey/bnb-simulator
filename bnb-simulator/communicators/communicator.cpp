@@ -1,5 +1,12 @@
 #include "communicator.hpp"
 
+int simulator::communicator::max_latency;
+
+void simulator::communicator::apply_settings(const JSONNode& node)
+{
+    max_latency = node["maximal latency"].as_int();
+}
+
 // constructor
 simulator::communicator::communicator(int size) :
     n(size), send_bytes(size, 0), receive_bytes(size, 0), notify()
@@ -34,13 +41,13 @@ void simulator::communicator::send(int sender, const BinarySerializer& message, 
         send_bytes[sender] += message.size();
         receive_bytes[receiver] += message.size();
 
-        notify[receiver](receive_response{ sender, timestamp });
+        notify[receiver](receive_response{ sender, timestamp + latency() });
 
         receive_box.erase(p);
 
     } else {
         send_box[receiver].insert(
-            std::multimap<int, send_request>::value_type{ sender, send_request{ message, timestamp } }
+            std::multimap<int, send_request>::value_type{ sender, send_request{ message, timestamp + latency() } }
         );
     }
 }
