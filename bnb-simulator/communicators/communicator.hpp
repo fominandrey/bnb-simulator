@@ -18,14 +18,8 @@ namespace simulator
 		// process pool size
 		int n;
 
-        static int max_latency;
-
-        // tools to generate pseudo-random integers
-        std::random_device device;
-        std::mt19937 generator{ device() };
-        std::uniform_int_distribution<> distribution{ (max_latency > 0) ? 1 : 0, max_latency };
-
-        int latency() { return distribution(generator); }
+        static int latency;
+        static long bandwidth;
 
         std::vector<long long> send_bytes;
         std::vector<long long> receive_bytes;
@@ -56,7 +50,7 @@ namespace simulator
 
         static const int any = -1;
 
-        void send(int sender, const BinarySerializer& message, long long timestamp, int receiver);
+        void send(int sender, const serializer& message, long long timestamp, int receiver);
 
         receive_response recv(int receiver, Buffer& storage, int sender = any);
 	};

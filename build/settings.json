@@ -4,13 +4,26 @@
         "time cost" :
         {
             "solve" : 1,
+            "store" : 1,
+            "load" : 1,
             "overhead" : 0
+        }
+    },
+
+    "serializer" :
+    {
+        "parcel size" :
+        {
+            "command" : 0,
+            "record" : 0,
+            "subproblem" : 1
         }
     },
 
     "communicator" :
     {
-        "maximal latency" : 10
+        "latency" : 1,
+        "bandwidth" : 1
     },
 
     "resolver" :

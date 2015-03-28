@@ -12,7 +12,7 @@ set(SOURCES ../bnbtest.cpp ../apply_settings.cpp)
 
 add_executable(${PROJECT} ${SOURCES})
 
-set(LIBRARIES processes communicators simulators pools)
+set(LIBRARIES processes communicators serializers simulators pools)
 
 foreach(LIB ${LIBRARIES})
     add_subdirectory(../bnb-simulator/${LIB}/build bin/${LIB})

@@ -17,6 +17,10 @@ namespace simulator
 		{
             // for one step
             static int solve;
+            // for one task to store
+            static int store;
+            // for one task to load
+            static int load;
             // process delay for sendind and receiving
             static int overhead;
 
@@ -25,6 +29,8 @@ namespace simulator
             static void apply_settings(const JSONNode& node);
 
             static int solve_cost() { return solve; }
+            static int store_cost() { return store; }
+            static int load_cost() { return load; }
             static int overhead_cost() { return overhead; }
         };
 

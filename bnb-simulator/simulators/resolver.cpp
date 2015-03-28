@@ -7,14 +7,6 @@ void simulator::resolver::apply_settings(const JSONNode& node)
     max_level = node["maximal task level"].as_int();
 }
 
-// constructor
-simulator::resolver::resolver()
-{
-    // add initial task to the pool
-    task_pool.open_box(0);
-    task_pool.add(task{0});
-}
-
 void simulator::resolver::getInfo(SolverInfo& info)
 {
     info.mNSub = task_pool.size();
@@ -26,11 +18,11 @@ void simulator::resolver::resetInfo()
     record_updated = false;
 }
 
-// no actions except recording to the log file
+// no actions except recording to the log
 void simulator::resolver::getRecords(BinarySerializer& ser)
 {}
 
-// no actions except recording to the log file
+// no actions except recording to the log
 void simulator::resolver::putRecords(BinarySerializer& ser)
 {}
 
@@ -59,56 +51,35 @@ void simulator::resolver::setSearchStrategy(int strategy)
     }
 }
 
-// no actions except recording to the log file
+// no actions except recording to the log
 void simulator::resolver::setHeuristic(int heuristic)
 {}
 
-// no actions except recording to the log file
+// no actions except recording to the log
 void simulator::resolver::setBoundingMethod(int method)
 {}
 
 void simulator::resolver::getSubs(int& num, BinarySerializer& ser)
 {
     int n = (task_pool.size() < num) ? task_pool.size() : num;
-    // n tasks to be sent out
+    // n tasks to send out
     ser << n;
 
-    if (!task_pool.empty()) {
+    if (n > 0) {
         // save search strategy prior to set sending strategy
         task_pool.save_strategy();
-
         task_pool.set_sending_strategy();
 
-        task t;
-        // q tasks have been sent out
-        int q = 0;
+        // k tasks have been put to the serializer
+        int k = 0;
 
-        do {
-            task_pool.open_box();
-
-            do {
-                t = task_pool.get();
-                task_pool.remove();
-
-                ser << t;
-
-                ++q;
-
-                if (!(q < n)) {
-                    if (task_pool.box_empty())
-                        task_pool.remove_box();
-                    // break both cycles
-                    goto done;
-                }
-            } while (!task_pool.box_empty());
-
-            task_pool.remove_box();
-
-        } while (!task_pool.empty());
-
-    done:
-        // load saved strategy
-        task_pool.load_strategy();
+        while (k < n && !task_pool.empty()) {
+            ser << task_pool.get();
+            task_pool.remove();
+            ++k;
+        }
+        // restore search strategy
+        task_pool.restore_strategy();
     }
 
     num = n;
@@ -124,7 +95,6 @@ int simulator::resolver::putSubs(BinarySerializer& ser)
 
     for (int i = 0; i < n; ++i) {
         ser >> t;
-        task_pool.open_box(t.level);
         task_pool.add(t);
     }
 
@@ -133,51 +103,22 @@ int simulator::resolver::putSubs(BinarySerializer& ser)
 
 void simulator::resolver::solve(long long& steps)
 {
-    // q steps have been done
-    long long q = 0;
+    // k steps have been done
+    long long k = 0;
 
-    if (solvable && !task_pool.empty()) {
+    if (solvable) {
 
-        task t;
-
-        do {
-            task_pool.open_box();
-            task_pool.save_box(0);
-            // open and save the next box
-            task_pool.open_next_box();
-            task_pool.save_box(1);
-            // load the previous box
-            task_pool.load_box(0);
-
-            do {
-                t = task_pool.get();
-                task_pool.remove();
-
-                // split t into 2 subtasks
-                if (split(t)) {
-                    t = task{ t.level + 1 };
-                    task_pool.load_box(1);
-                    task_pool.add(t);
-                    task_pool.add(t);
-                    task_pool.load_box(0);
-                }
-
-                ++q;
-
-                if (!(q < steps)) {
-                    if (task_pool.box_empty())
-                        task_pool.remove_box();
-                    // break both cycles
-                    goto done;
-                }
-
-            } while (!task_pool.box_empty());
-
-            task_pool.remove_box();
-
-        } while (!task_pool.empty());
+         while (k < steps && !task_pool.empty()) {
+            task t = task_pool.get();
+            task_pool.remove();
+            // split into 2 subsets
+            if (split(t)) {
+                task_pool.add(task{ t.level + 1 });
+                task_pool.add(task{ t.level + 1 });
+            }
+            ++k;
+        }
     }
 
-done:
-    steps = q;
+    steps = k;
 }

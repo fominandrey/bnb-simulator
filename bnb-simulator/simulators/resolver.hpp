@@ -7,7 +7,8 @@
 
 #include <kernel/dmmemory/sstrat.hpp>
 #include <kernel/dmmemory/bnbresolver.hpp>
-#include <pools/task_map.hpp>
+
+#include <pools/simple_pool.hpp>
 
 #include <random>
 
@@ -15,7 +16,7 @@ namespace simulator
 {
     class resolver : public BNBResolver
 	{
-        pools::task_map task_pool;
+        pools::simple_pool task_pool;
 
         bool solvable = true;
 
@@ -34,8 +35,7 @@ namespace simulator
 
         static void apply_settings(const JSONNode& node);
 
-        // constructor
-        resolver();
+        void load_initial_task() { task_pool.add(task{0}); }
 
         void getInfo(SolverInfo& info) override;
 

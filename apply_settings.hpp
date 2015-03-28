@@ -10,6 +10,7 @@
 #include <libjson/libjson.h>
 
 #include <communicators/timer.hpp>
+#include <serializers/serializer.hpp>
 #include <communicators/communicator.hpp>
 #include <simulators/resolver.hpp>
 

@@ -16,13 +16,19 @@ void simulator::process::writeStats(const std::string& s) const
 }
 
 // constructor
-simulator::process::process(communicator& comm, BNBScheduler& sched, BNBResolver& solver, Tracer& tracer) :
-    mComm(comm), mSched(sched), mSolver(solver), mTracer(tracer),
+simulator::process::process(communicator& comm, BNBScheduler& sched, resolver& solver, Tracer& tracer) :
+    mComm(comm),
+    mSched(sched),
+    mSolver(solver),
+    mTracer(tracer),
     self(mComm.link(std::bind(&process::awaken, this, std::placeholders::_1))),
 	size(mComm.size())
 {
 	mSched.setRank(self);
     mSched.setSize(size);
+    // add initial problem to the pool
+    if (self == master)
+        mSolver.load_initial_task();
 	event.mCode = BNBScheduler::Events::START;
 }
 
@@ -31,95 +37,6 @@ void simulator::process::awaken(const receive_response& r)
     response = r;
     time.set(response.time);
     state = process_state::awake;
-}
-
-void simulator::process::send_command()
-{
-    int code = BNBDmSolver::MessageTypes::COMMAND;
-    int dest = action.mArgs[0];
-    int command = action.mArgs[1];
-
-    binser << code;
-    binser << command;
-
-    time.spend(timer::time_cost::overhead_cost());
-
-    mComm.send(self, binser, time.get(), dest);
-    binser.reset();
-
-    event.mCode = BNBScheduler::Events::SENT;
-
-    cnt.sent_commands++;
-    cnt.sent_parcels++;
-}
-
-void simulator::process::send_sub()
-{
-    int code = BNBDmSolver::MessageTypes::SUBPROBLEMS;
-	int dest = action.mArgs[0];
-    int num = action.mArgs[1];
-
-	if (info.mNSub > 0) {
-        binser << code;
-        mSolver.getSubs(num, binser);
-
-        time.spend(timer::time_cost::overhead_cost());
-
-        mComm.send(self, binser, time.get(), dest);
-        binser.reset();
-
-        event.mCode = BNBScheduler::Events::SENT;
-
-    	cnt.sent_parcels++;
-		cnt.sent_subs += num;
-    } else {
-		event.mCode = BNBScheduler::Events::NOTHING_TO_SEND;
-    }
-}
-
-void simulator::process::send_records()
-{
-    int code = BNBDmSolver::MessageTypes::RECORDS;
-    int dest = action.mArgs[0];
-
-    binser << code;
-    mSolver.getRecords(binser);
-
-    time.spend(timer::time_cost::overhead_cost());
-
-    mComm.send(self, binser, time.get(), dest);
-    binser.reset();
-
-	event.mCode = BNBScheduler::Events::SENT;
-
-	cnt.sent_parcels++;
-	cnt.sent_records++;
-}
-
-void simulator::process::send_sub_and_records()
-{
-    int code = BNBDmSolver::MessageTypes::SUB_AND_RECORDS;
-	int dest = action.mArgs[0];
-    int num = action.mArgs[1];
-
-	if (info.mNSub > 0) {
-        binser << code;
-        mSolver.getRecords(binser);
-        mSolver.getSubs(num, binser);
-
-        time.spend(timer::time_cost::overhead_cost());
-
-        mComm.send(self, binser, time.get(), dest);
-        binser.reset();
-
-        event.mCode = BNBScheduler::Events::SENT;
-
-        cnt.sent_parcels++;
-        cnt.sent_records++;
-        cnt.sent_subs += num;
-    } else {
-        event.mCode = BNBScheduler::Events::NOTHING_TO_SEND;
-    }
 }
 
 void simulator::process::solve()
@@ -140,6 +57,109 @@ void simulator::process::solve()
     }
 }
 
+void simulator::process::send_command()
+{
+    int code = BNBDmSolver::MessageTypes::COMMAND;
+    int dest = action.mArgs[0];
+    int command = action.mArgs[1];
+
+    binser << code;
+    binser << command;
+
+    binser.assign_size(serializer::parcel_size::command_size());
+
+    time.spend(timer::time_cost::overhead_cost());
+
+    mComm.send(self, binser, time.get(), dest);
+    binser.reset();
+
+    event.mCode = BNBScheduler::Events::SENT;
+
+    cnt.sent_commands++;
+    cnt.sent_parcels++;
+}
+
+void simulator::process::send_records()
+{
+    int code = BNBDmSolver::MessageTypes::RECORDS;
+    int dest = action.mArgs[0];
+
+    binser << code;
+
+    mSolver.getRecords(binser);
+
+    binser.assign_size(serializer::parcel_size::record_size());
+
+    time.spend(timer::time_cost::overhead_cost());
+
+    mComm.send(self, binser, time.get(), dest);
+    binser.reset();
+
+	event.mCode = BNBScheduler::Events::SENT;
+
+	cnt.sent_parcels++;
+	cnt.sent_records++;
+}
+
+void simulator::process::send_sub()
+{
+    int code = BNBDmSolver::MessageTypes::SUBPROBLEMS;
+	int dest = action.mArgs[0];
+    int n = action.mArgs[1];
+
+	if (info.mNSub > 0) {
+        binser << code;
+
+        mSolver.getSubs(n, binser);
+
+        binser.assign_size(serializer::parcel_size::sub_size() * n);
+
+        time.spend(timer::time_cost::store_cost() * n +
+            timer::time_cost::overhead_cost());
+
+        mComm.send(self, binser, time.get(), dest);
+        binser.reset();
+
+        event.mCode = BNBScheduler::Events::SENT;
+
+    	cnt.sent_parcels++;
+		cnt.sent_subs += n;
+    } else {
+		event.mCode = BNBScheduler::Events::NOTHING_TO_SEND;
+    }
+}
+
+void simulator::process::send_sub_and_records()
+{
+    int code = BNBDmSolver::MessageTypes::SUB_AND_RECORDS;
+	int dest = action.mArgs[0];
+    int n = action.mArgs[1];
+
+	if (info.mNSub > 0) {
+        binser << code;
+
+        mSolver.getRecords(binser);
+        mSolver.getSubs(n, binser);
+
+        binser.assign_size(serializer::parcel_size::sub_size() * n +
+            serializer::parcel_size::record_size());
+
+        time.spend(timer::time_cost::store_cost() * n +
+            timer::time_cost::overhead_cost());
+
+        mComm.send(self, binser, time.get(), dest);
+        binser.reset();
+
+        event.mCode = BNBScheduler::Events::SENT;
+
+        cnt.sent_parcels++;
+        cnt.sent_records++;
+        cnt.sent_subs += n;
+    } else {
+        event.mCode = BNBScheduler::Events::NOTHING_TO_SEND;
+    }
+}
+
 void simulator::process::receive()
 {
 	response = mComm.recv(self, binser);
@@ -153,10 +173,65 @@ void simulator::process::receive()
     }
 }
 
+void simulator::process::receive_command()
+{
+    event.mCode = BNBScheduler::Events::COMMAND_ARRIVED;
+
+    int command;
+
+    binser >> command;
+
+    event.mArgs[0] = response.sender;
+    event.mArgs[1] = command;
+
+    cnt.recv_commands++;
+}
+
+void simulator::process::receive_records()
+{
+    event.mCode = BNBScheduler::Events::DATA_ARRIVED;
+
+    event.mArgs[0] = response.sender;
+
+    mSolver.putRecords(binser);
+
+    cnt.recv_records++;
+}
+
+void simulator::process::receive_sub()
+{
+    event.mCode = BNBScheduler::Events::DATA_ARRIVED;
+
+    event.mArgs[0] = response.sender;
+
+    int n = mSolver.putSubs(binser);
+
+    time.spend(timer::time_cost::load_cost() * n);
+
+    cnt.recv_subs += n;
+}
+
+void simulator::process::receive_sub_and_records()
+{
+    event.mCode = BNBScheduler::Events::DATA_ARRIVED;
+
+    event.mArgs[0] = response.sender;
+
+    mSolver.putRecords(binser);
+
+    int n = mSolver.putSubs(binser);
+
+    time.spend(timer::time_cost::load_cost() * n);
+
+    cnt.recv_records++;
+    cnt.recv_subs += n;
+}
+
 void simulator::process::complete_receive()
 {
-    int r = response.sender;
-	int code, command;
+    time.spend(timer::time_cost::overhead_cost());
+
+	int code;
 
     binser >> code;
 
@@ -164,36 +239,22 @@ void simulator::process::complete_receive()
 
 	switch (code) {
 	case BNBDmSolver::MessageTypes::COMMAND :
-		event.mCode = BNBScheduler::Events::COMMAND_ARRIVED;
-        binser >> command;
-        event.mArgs[0] = r;
-        event.mArgs[1] = command;
-        cnt.recv_commands++;
+		receive_command();
 		break;
     case BNBDmSolver::MessageTypes::RECORDS :
-        event.mCode = BNBScheduler::Events::DATA_ARRIVED;
-        event.mArgs[0] = r;
-        mSolver.putRecords(binser);
-        cnt.recv_records++;
+		receive_records();
 		break;
     case BNBDmSolver::MessageTypes::SUBPROBLEMS :
-        event.mCode = BNBScheduler::Events::DATA_ARRIVED;
-        event.mArgs[0] = r;
-        cnt.recv_subs += mSolver.putSubs(binser);
+		receive_sub();
 		break;
     case BNBDmSolver::MessageTypes::SUB_AND_RECORDS :
-        event.mCode = BNBScheduler::Events::DATA_ARRIVED;
-        event.mArgs[0] = r;
-        mSolver.putRecords(binser);
-        cnt.recv_subs += mSolver.putSubs(binser);
+		receive_sub_and_records();
 		break;
 	// this case can't occur
 	default:
         std::cout << "message type [" << code << "]\n";
 		BNB_ERROR_REPORT("Undefined message type");
     }
-
-    time.spend(timer::time_cost::overhead_cost());
 
     binser.reset();
 }
@@ -256,15 +317,15 @@ bool simulator::process::finish()
 		    cnt.recv_bytes = mComm.getRecvBytes(self);
 		    cnt.sent_bytes = mComm.getSentBytes(self);
 
-		    if (self == accumulator) {
+		    if (self == master) {
                 os << "time = " << time.get() << '\n';
-                os << accumulator << ": " << cnt.toString() << '\n';
+                os << master << ": " << cnt.toString() << '\n';
             } else {
                 binser << cnt.toString();
-                mComm.send(self, binser, time.get(), accumulator);
+                mComm.send(self, binser, time.get(), master);
                 return false;
             }
-		    // accumulator starts to gather data that other pseudo-processes have sent
+		    // master starts to gather data that other pseudo-processes have sent
 			++source;
 		}
 

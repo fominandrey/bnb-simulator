@@ -6,34 +6,29 @@
 #include "pool_strategies.hpp"
 #include "task.hpp"
 
-#include <utility>
+#include <utility> // std::move
 
 namespace pools
 {
     class abstract_task_pool
 	{
-        // size of the pool
-        long long n = 0;
-        // stores saved search strategy
+        // to save search strategy and restore it later
         pool_strategy save;
 
     protected:
 
         pool_strategy strategy = pool_strategy::WFS;
 
-        void increase_size() { ++n; }
-        void decrease_size() { --n; }
-
     public:
 
-        bool empty() const { return !(n > 0); }
-        long long size() const { return n; }
+        virtual bool empty() const = 0;
+        virtual long long size() const = 0;
 
         void set_strategy(pool_strategy s) { strategy = s; }
         void set_sending_strategy();
 
         void save_strategy() { save = strategy; }
-        void load_strategy() { strategy = save; }
+        void restore_strategy() { strategy = save; }
 
         virtual void add(const task& t) = 0;
         virtual void add(task&& t) = 0;

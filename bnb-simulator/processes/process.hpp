@@ -2,6 +2,7 @@
 #define _pseudo_process_hpp
 
 #include <communicators/communicator.hpp>
+#include <simulators/resolver.hpp>
 
 #include <kernel/dmmemory/bnbdmsolver.hpp>
 
@@ -16,9 +17,10 @@ namespace simulator
         timer time{};
 
         communicator& mComm;
+        resolver& mSolver;
 
+        // bnb-solver classes
         BNBScheduler& mSched;
-        BNBResolver& mSolver;
         Tracer& mTracer;
 
         std::string mStatFileName = "statistics";
@@ -38,7 +40,7 @@ namespace simulator
         // response for the last receive request
         receive_response response{};
 
-        BinarySerializer binser{};
+        serializer binser{};
 
         DmCounters cnt{};
 
@@ -50,7 +52,7 @@ namespace simulator
         bool quit = false;
 
 		// process that gathers data prior to exit
-		static const int accumulator = 0;
+		static const int master = 0;
 
 		int source = 0;
 
@@ -64,15 +66,21 @@ namespace simulator
 
 		// Actions:
 
+		void solve();
+
 		void send_command();
-		void send_sub();
 		void send_records();
+		void send_sub();
 		void send_sub_and_records();
 
 		void receive();
-		void complete_receive();
 
-		void solve();
+		void receive_command();
+		void receive_records();
+		void receive_sub();
+		void receive_sub_and_records();
+
+		void complete_receive();
 
         void work();
 
@@ -81,7 +89,7 @@ namespace simulator
 
     public:
         // constructor
-        process(communicator& comm, BNBScheduler& sched, BNBResolver& solver, Tracer& tracer);
+        process(communicator& comm, BNBScheduler& sched, resolver& solver, Tracer& tracer);
 
         void setStatsFileName(const std::string& fname) { mStatFileName = fname; }
 
