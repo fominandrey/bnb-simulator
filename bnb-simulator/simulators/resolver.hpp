@@ -25,8 +25,7 @@ namespace simulator
         static int max_level;
 
         // tools to generate pseudo-random integers
-        std::random_device device;
-        std::mt19937 generator{ device() };
+        std::mt19937 generator{ std::random_device{}() };
         std::uniform_int_distribution<> distribution{ 0, max_level - 1 };
 
         bool split(const task& t) { return !(distribution(generator) < t.level); }
