@@ -61,10 +61,11 @@ void simulator::process::send_command()
 {
     int code = BNBDmSolver::MessageTypes::COMMAND;
     int dest = action.mArgs[0];
-    int command = action.mArgs[1];
 
     binser << code;
-    binser << command;
+
+    for (int i = 1; i < MAX_ARGS; ++i)
+        binser << action.mArgs[i];
 
     binser.assign_size(serializer::parcel_size::command_size());
 
@@ -177,12 +178,10 @@ void simulator::process::receive_command()
 {
     event.mCode = BNBScheduler::Events::COMMAND_ARRIVED;
 
-    int command;
-
-    binser >> command;
-
     event.mArgs[0] = response.sender;
-    event.mArgs[1] = command;
+
+    for (int i = 1; i < MAX_ARGS; ++i)
+        binser >> event.mArgs[i];
 
     cnt.recv_commands++;
 }
@@ -325,7 +324,7 @@ bool simulator::process::finish()
                 mComm.send(self, binser, time.get(), master);
                 return false;
             }
-		    // master starts to gather data that other pseudo-processes have sent
+		    // master starts to gather data that other processes have sent
 			++source;
 		}
 
