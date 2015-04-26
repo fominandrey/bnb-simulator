@@ -9,6 +9,11 @@ namespace simulator
 	{
         serializer content;
         long long timestamp;
+        // to prioritize requests
+        bool operator <(const send_request& other) const
+        {
+            return (timestamp > other.timestamp);
+        }
     };
 
     struct receive_request

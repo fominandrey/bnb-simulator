@@ -7,8 +7,9 @@
 #include "request.hpp"
 
 #include <map>
+#include <queue>
 #include <vector>
-#include <random>
+#include <algorithm>
 #include <functional>
 
 namespace simulator
@@ -28,8 +29,15 @@ namespace simulator
 
         std::vector<signal> notify;
 
-        std::map<int, std::multimap<int, send_request>> send_box{};
+        std::map<int, std::map<int, std::priority_queue<send_request>>> send_box{};
         std::map<int, receive_request> receive_box{};
+
+        typedef std::map<int, std::priority_queue<send_request>>::value_type requests_by_sender;
+
+        static bool prioritize_senders(const requests_by_sender& a, const requests_by_sender& b)
+        {
+            return (a.second.top() < b.second.top());
+        }
 
         void deliver(Buffer& storage, const Buffer& content) const;
 
@@ -40,7 +48,7 @@ namespace simulator
         // constructor
         explicit communicator(int size);
 
-        // obtains the notifier for the pseudo-process and returns its id
+        // obtains the notifier for the process and returns its id
         int link(const signal& ding);
 
         int size() const { return n; }

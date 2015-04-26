@@ -35,7 +35,7 @@ namespace simulator
 
         int actual_size() const { return s; }
         void assign_size(int size) { s = size; }
-        void reset() { s = 0; BinarySerializer::reset(); }
+        void reset() {  BinarySerializer::reset(); s = 0; }
     };
 }
 

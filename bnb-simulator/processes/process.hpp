@@ -17,17 +17,18 @@ namespace simulator
         timer time{};
 
         communicator& mComm;
+
+        BNBScheduler& mSched; // bnb-solver class
+
         resolver& mSolver;
 
-        // bnb-solver classes
-        BNBScheduler& mSched;
-        Tracer& mTracer;
+        Tracer& mTracer; // bnb-solver class
 
-        std::string mStatFileName = "statistics";
+        std::string mStatFileName = "stats";
 
-		// pseudo-process id
+		// process id
         int self;
-        // pseudo-process pool size
+        // process pool size
 		int size;
 
         enum class process_state
@@ -42,25 +43,17 @@ namespace simulator
 
         serializer binser{};
 
-        DmCounters cnt{};
-
-        SolverInfo info{};
-
         BNBScheduler::Action action{};
         BNBScheduler::Event event{};
 
-        bool quit = false;
+        SolverInfo info{};
 
-		// process that gathers data prior to exit
+        DmCounters cnt{};
+
+		// master process id
 		static const int master = 0;
 
-		int source = 0;
-
-        // to be initialized only once, these objects are stored in the class instance
-        std::string s{};
-        std::ostringstream os{};
-
-        void trace(BNBScheduler::Action& action, BNBScheduler::Event& event, const SolverInfo& info, bool last = false);
+        void trace(BNBScheduler::Action& action, BNBScheduler::Event& event, const SolverInfo& info);
 
         void writeStats(const std::string& s) const;
 
@@ -74,18 +67,16 @@ namespace simulator
 		void send_sub_and_records();
 
 		void receive();
+		void complete_receive();
 
 		void receive_command();
 		void receive_records();
 		void receive_sub();
 		void receive_sub_and_records();
 
-		void complete_receive();
+		void dump_stats();
 
-        void work();
-
-		bool finish();
-		void complete_gather();
+        bool work();
 
     public:
         // constructor
@@ -95,6 +86,8 @@ namespace simulator
 
         void awaken(const receive_response& r);
 
+        long long activate();
+        // returns true to quit
 		bool proceed();
     };
 }

@@ -21,7 +21,7 @@ namespace simulator
             static int store;
             // for one task to load
             static int load;
-            // process delay for sendind and receiving
+            // delay for sendind and receiving
             static int overhead;
 
         public:

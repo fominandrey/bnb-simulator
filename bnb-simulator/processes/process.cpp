@@ -1,10 +1,8 @@
 #include "process.hpp"
 
-void simulator::process::trace(BNBScheduler::Action& action, BNBScheduler::Event& event, const SolverInfo& info, bool last)
+void simulator::process::trace(BNBScheduler::Action& action, BNBScheduler::Event& event, const SolverInfo& info)
 {
     mTracer.traceAction(time.get(), self, action, event, info);
-    if (last)
-        mTracer.flush(self);
 }
 
 void simulator::process::writeStats(const std::string& s) const
@@ -12,7 +10,7 @@ void simulator::process::writeStats(const std::string& s) const
     if (mStatFileName.empty())
         std::cout << s << std::endl;
     else
-        std::ofstream(mStatFileName) << s << std::endl;
+        std::ofstream(mStatFileName, std::ios::app) << s << std::endl;
 }
 
 // constructor
@@ -164,14 +162,45 @@ void simulator::process::send_sub_and_records()
 void simulator::process::receive()
 {
 	response = mComm.recv(self, binser);
-	long long t = response.time;
 
-	if (t == timer::sleep_time) {
+	if (response.time == timer::sleep_time) {
         state = process_state::sleep;
     } else {
-		time.set(t);
+		time.set(response.time);
 		complete_receive();
     }
+}
+
+void simulator::process::complete_receive()
+{
+    time.spend(timer::time_cost::overhead_cost());
+
+	int code;
+
+    binser >> code;
+
+    cnt.recv_parcels++;
+
+	switch (code) {
+	case BNBDmSolver::MessageTypes::COMMAND :
+		receive_command();
+		break;
+    case BNBDmSolver::MessageTypes::RECORDS :
+		receive_records();
+		break;
+    case BNBDmSolver::MessageTypes::SUBPROBLEMS :
+		receive_sub();
+		break;
+    case BNBDmSolver::MessageTypes::SUB_AND_RECORDS :
+		receive_sub_and_records();
+		break;
+	// this case can't occur
+	default:
+        std::cout << "message type [" << code << "]" << std::endl;
+		BNB_ERROR_REPORT("Undefined message type");
+    }
+
+    binser.reset();
 }
 
 void simulator::process::receive_command()
@@ -226,148 +255,76 @@ void simulator::process::receive_sub_and_records()
     cnt.recv_subs += n;
 }
 
-void simulator::process::complete_receive()
+void simulator::process::dump_stats()
 {
-    time.spend(timer::time_cost::overhead_cost());
+    mTracer.flush(self);
 
-	int code;
+	cnt.sent_bytes = mComm.getSentBytes(self);
+	cnt.recv_bytes = mComm.getRecvBytes(self);
 
-    binser >> code;
+    std::ostringstream os;
 
-    cnt.recv_parcels++;
+    os << self << ": " << cnt.toString() << " " << time.get();
 
-	switch (code) {
-	case BNBDmSolver::MessageTypes::COMMAND :
-		receive_command();
-		break;
-    case BNBDmSolver::MessageTypes::RECORDS :
-		receive_records();
-		break;
-    case BNBDmSolver::MessageTypes::SUBPROBLEMS :
-		receive_sub();
-		break;
-    case BNBDmSolver::MessageTypes::SUB_AND_RECORDS :
-		receive_sub_and_records();
-		break;
-	// this case can't occur
-	default:
-        std::cout << "message type [" << code << "]\n";
-		BNB_ERROR_REPORT("Undefined message type");
-    }
-
-    binser.reset();
+    writeStats(os.str());
 }
 
-void simulator::process::work()
+bool simulator::process::work()
 {
-	if (state == process_state::active) {
+    bool quit = false;
 
-    	mSolver.getInfo(info);
-    	mSched.action(event, info, action);
-    	trace(action, event, info);
+    mSolver.getInfo(info);
+    mSched.action(event, info, action);
+    trace(action, event, info);
 
-        switch (action.mCode) {
-        case BNBScheduler::Actions::DUMMY_ACTION :
-            break;
-        case BNBScheduler::Actions::SET_SEARCH_STRATEGY :
-            mSolver.setSearchStrategy(action.mArgs[0]);
-            event.mCode = BNBScheduler::Events::SEARCH_STRATEGY_SET;
-            break;
-        case BNBScheduler::Actions::SEND_COMMAND :
-			send_command();
-			break;
-        case BNBScheduler::Actions::SEND_SUB :
-			send_sub();
-			break;
-        case BNBScheduler::Actions::SEND_RECORDS :
-			send_records();
-            break;
-        case BNBScheduler::Actions::SEND_SUB_AND_RECORDS :
-			send_sub_and_records();
-            break;
-        case BNBScheduler::Actions::RECV :
-			receive();
-            break;
-        case BNBScheduler::Actions::SOLVE :
-			solve();
-            break;
-        case BNBScheduler::Actions::EXIT :
-            quit = true;
-            break;
-        // this case can't occur
-        default:
-            std::cout << "action [" << action.mCode << "]\n";
-            BNB_ERROR_REPORT("Undefined action");
-        }
-    } else {
+    switch (action.mCode) {
+    case BNBScheduler::Actions::DUMMY_ACTION :
+        break;
+    case BNBScheduler::Actions::SET_SEARCH_STRATEGY :
+        mSolver.setSearchStrategy(action.mArgs[0]);
+        event.mCode = BNBScheduler::Events::SEARCH_STRATEGY_SET;
+        break;
+    case BNBScheduler::Actions::SEND_COMMAND :
+		send_command();
+		break;
+    case BNBScheduler::Actions::SEND_SUB :
+		send_sub();
+		break;
+    case BNBScheduler::Actions::SEND_RECORDS :
+		send_records();
+        break;
+    case BNBScheduler::Actions::SEND_SUB_AND_RECORDS :
+		send_sub_and_records();
+        break;
+    case BNBScheduler::Actions::RECV :
+		receive();
+        break;
+    case BNBScheduler::Actions::SOLVE :
+		solve();
+        break;
+    case BNBScheduler::Actions::EXIT :
+        dump_stats();
+        quit = true;
+        break;
+    // this case can't occur
+    default:
+        std::cout << "action [" << action.mCode << "]" << std::endl;
+        BNB_ERROR_REPORT("Undefined action");
+    }
+
+	return quit;
+}
+
+long long simulator::process::activate()
+{
+    if (state == process_state::awake) {
 		state = process_state::active;
 		complete_receive();
 	}
-}
-
-bool simulator::process::finish()
-{
-	if (state == process_state::active) {
-
-		if (source == 0) {
-			mSolver.getInfo(info);
-		    trace(action, event, info, true);
-
-		    cnt.recv_bytes = mComm.getRecvBytes(self);
-		    cnt.sent_bytes = mComm.getSentBytes(self);
-
-		    if (self == master) {
-                os << "time = " << time.get() << '\n';
-                os << master << ": " << cnt.toString() << '\n';
-            } else {
-                binser << cnt.toString();
-                mComm.send(self, binser, time.get(), master);
-                return false;
-            }
-		    // master starts to gather data that other processes have sent
-			++source;
-		}
-
-        while (source < size) {
-            response = mComm.recv(self, binser, source);
-            long long t = response.time;
-
-            if (t == timer::sleep_time) {
-                state = process_state::sleep;
-                return true;
-            } else {
-                time.set(t);
-                complete_gather();
-            }
-        }
-
-        writeStats(os.str());
-        return false;
-
-	} else {
-		state = process_state::active;
-		complete_gather();
-		return true;
-	}
-}
-
-void simulator::process::complete_gather()
-{
-    binser >> s;
-    os << source << ": " << s << '\n';
-    binser.reset();
-    s.clear();
-	++source;
+	return ((state != process_state::sleep) ? time.get() : timer::sleep_time);
 }
 
 bool simulator::process::proceed()
 {
-    if (state != process_state::sleep) {
-		if (!quit) {
-			work();
-        } else {
-            return finish();
-        }
-    }
-    return true;
+    return work();
 }

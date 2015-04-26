@@ -28,12 +28,12 @@ int simulator::communicator::link(const signal& ding)
 
 void simulator::communicator::deliver(Buffer& storage, const Buffer& message) const
 {
-	int n = message.size();
+	int required_size = message.size();
 
-	if (storage.resize(n))
+	if (storage.resize(required_size))
         BNB_ERROR_REPORT("Too large buffer requested");
 
-    memcpy(storage.data(), message.data(), n);
+    memcpy(storage.data(), message.data(), required_size);
 }
 
 void simulator::communicator::send(int sender, const serializer& message, long long timestamp, int receiver)
@@ -62,9 +62,7 @@ void simulator::communicator::send(int sender, const serializer& message, long l
         receive_box.erase(p);
 
     } else {
-        send_box[receiver].insert(
-            std::multimap<int, send_request>::value_type{ sender, send_request{ message, timestamp + delay } }
-        );
+        send_box[receiver][sender].push(send_request{ message, timestamp + delay });
     }
 }
 
@@ -72,15 +70,15 @@ simulator::receive_response simulator::communicator::recv(int receiver, Buffer& 
 {
     auto q = send_box.find(receiver);
 
-    std::multimap<int, send_request>::const_iterator p;
+    std::map<int, std::priority_queue<send_request>>::iterator p;
 
     bool message_ready = false;
 
     if (q != send_box.end()) {
-        const auto& message_box = q->second;  // messages for 'receiver' process
+        auto& message_box = q->second;
 
         if (sender == any) {
-            p = message_box.begin();
+            p = std::max_element(message_box.begin(), message_box.end(), prioritize_senders);
             message_ready = true;
         } else {
             p = message_box.find(sender);
@@ -90,18 +88,23 @@ simulator::receive_response simulator::communicator::recv(int receiver, Buffer& 
 
     if (message_ready) {
         auto& message_box = q->second;
+        auto& message_queue = p->second;
 
         sender = p->first;
-        const send_request& request = p->second;
+        const send_request& request = message_queue.top();
 
         deliver(storage, request.content);
 
         send_bytes[sender] += request.content.actual_size();
         receive_bytes[receiver] += request.content.actual_size();
 
-        message_box.erase(p);
-        if (message_box.empty())
-            send_box.erase(q);
+        message_queue.pop();
+        if (message_queue.empty()) {
+            message_box.erase(p);
+            if (message_box.empty()) {
+                send_box.erase(q);
+            }
+        }
 
         return receive_response{ sender, request.timestamp };
     } else {
